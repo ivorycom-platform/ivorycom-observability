@@ -1,0 +1,37 @@
+{
+  "name": "@ivorycom/observability-ts",
+  "version": "0.1.0",
+  "description": "Ivorycom shared OpenTelemetry instrumentation for Node/Fastify services.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "^0.219.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.77.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.219.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.219.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
+    "@opentelemetry/resources": "^2.8.0",
+    "@opentelemetry/sdk-logs": "^0.219.0",
+    "@opentelemetry/sdk-metrics": "^2.8.0",
+    "@opentelemetry/sdk-node": "^0.219.0",
+    "@opentelemetry/semantic-conventions": "^1.41.1",
+    "fastify-plugin": "^5.0.1",
+    "pino": "^9.6.0"
+  },
+  "peerDependencies": {
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "fastify": "^5.2.0",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.9"
+  },
+  "license": "UNLICENSED"
+}

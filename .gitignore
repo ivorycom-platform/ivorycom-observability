@@ -1,0 +1,12 @@
+# Node
+ts/node_modules/
+ts/dist/
+node_modules/
+*.log
+
+# Go
+go/vendor/
+
+# Env — secrets live in Infisical, never in git
+.env
+.env.*

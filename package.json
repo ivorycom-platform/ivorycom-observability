@@ -1,0 +1,23 @@
+{
+  "name": "@ivorycom/observability",
+  "version": "0.1.0",
+  "description": "Ivorycom shared OpenTelemetry instrumentation — TypeScript shim over the package in ts/. Built on `npm install` via the prepare script.",
+  "main": "ts/dist/index.js",
+  "types": "ts/dist/index.d.ts",
+  "files": [
+    "ts/dist",
+    "ts/src",
+    "ts/package.json",
+    "ts/tsconfig.json"
+  ],
+  "scripts": {
+    "prepare": "test -f ts/dist/index.js || (cd ts && (npm ci || npm install) && npm run build)"
+  },
+  "license": "UNLICENSED",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ivorycom-platform/ivorycom-observability.git",
+    "directory": "ts"
+  }
+}
