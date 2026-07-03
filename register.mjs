@@ -16,7 +16,7 @@ if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
   // import 'openai/shims/node' first"). None of them are instrumented anyway.
   registerLoaderHook("@opentelemetry/instrumentation/hook.mjs", {
     parentURL: import.meta.url,
-    data: { exclude: [/openai/] },
+    data: { exclude: [/openai/, /@anthropic-ai\/sdk/] },
   });
   const require = createRequire(import.meta.url);
   const { initObservability } = require("./ts/dist/index.js");
