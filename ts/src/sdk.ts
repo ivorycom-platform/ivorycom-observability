@@ -1,4 +1,5 @@
 import { NodeSDK } from "@opentelemetry/sdk-node";
+import { bridgeConsole } from "./console-bridge";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
@@ -50,6 +51,11 @@ export async function initObservability(opts: InitOptions): Promise<Observabilit
   });
 
   sdk.start();
+
+  // Console → Loki: services that log via console (pollers) still get the
+  // logs pillar. Must run after sdk.start() so the global LoggerProvider is
+  // registered.
+  bridgeConsole();
 
   return {
     shutdown: () => sdk.shutdown(),
