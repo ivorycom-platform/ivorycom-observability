@@ -11,7 +11,13 @@
 import { register as registerLoaderHook, createRequire } from "node:module";
 
 if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
-  registerLoaderHook("@opentelemetry/instrumentation/hook.mjs", import.meta.url);
+  // exclude: packages whose module graphs carry import-order side effects and
+  // break under IITM re-evaluation (openai's _shims registry throws "you must
+  // import 'openai/shims/node' first"). None of them are instrumented anyway.
+  registerLoaderHook("@opentelemetry/instrumentation/hook.mjs", {
+    parentURL: import.meta.url,
+    data: { exclude: [/openai/] },
+  });
   const require = createRequire(import.meta.url);
   const { initObservability } = require("./ts/dist/index.js");
   await initObservability({
