@@ -62,26 +62,37 @@ func HTTPClient() *http.Client {
 // whose upstream is legitimately slower than the default. The header budget
 // tracks it, so the advertised total is actually reachable.
 func HTTPClientWithTimeout(timeout time.Duration) *http.Client {
-	return &http.Client{Timeout: timeout, Transport: TransportWithHeaderBudget(timeout)}
+	requirePositive("HTTPClientWithTimeout", timeout)
+	return &http.Client{
+		Timeout:       timeout,
+		Transport:     TransportWithHeaderBudget(timeout),
+		CheckRedirect: noRedirects,
+	}
 }
 
-// StreamHTTPClient returns a traced client with NO total timeout, for a
-// long-lived response body (SSE) that a total timeout would cut mid-flight.
+// noRedirects refuses to follow redirects. Go's default follows up to 10 and
+// REWRITES POST to GET on 301/302/303, so a state-changing internal call could
+// be silently turned into a GET whose 200 looks like success. Go also forwards
+// custom trust headers to the redirect target; only Authorization and cookies
+// are specially stripped. Internal RPC has no legitimate redirect.
+func noRedirects(*http.Request, []*http.Request) error {
+	return http.ErrUseLastResponse
+}
+
+func requirePositive(what string, d time.Duration) {
+	if d <= 0 {
+		panic("obs: " + what + " requires a positive duration; a zero or " +
+			"negative budget disables the bound entirely")
+	}
+}
+
+// NOTE ON STREAMING. This module deliberately exposes NO stream client.
 //
-// It is not unbounded: dial, TLS handshake and response-header phases are still
-// capped by Transport(), so a peer that stalls BEFORE the stream starts fails
-// fast. A peer that stalls AFTER headers must be bounded by the caller — pass a
-// context with a deadline, or enforce a read-idle/heartbeat deadline. A stream
-// is not an approved exception to INV-011.
-func StreamHTTPClient() *http.Client {
-	return StreamHTTPClientWithHeaderBudget(DefaultStreamHeaderBudget)
-}
-
-// DefaultStreamHeaderBudget bounds how long a stream may take to START.
-const DefaultStreamHeaderBudget = 30 * time.Second
-
-// StreamHTTPClientWithHeaderBudget is StreamHTTPClient with an explicit bound on
-// the pre-stream phase.
-func StreamHTTPClientWithHeaderBudget(headerBudget time.Duration) *http.Client {
-	return &http.Client{Transport: TransportWithHeaderBudget(headerBudget)}
-}
+// A helper that bounds only the pre-stream phases and then instructs future
+// callers to enforce their own read-idle deadline is not INV-011-safe
+// infrastructure — it is an unbounded client with a comment. There are no
+// stream callers of this module today, so the honest move is to not ship the
+// hazard: a service that needs one should use a client paired with an enforced
+// read-idle reader (see ivorycom-crm-marketing/internal/httpx.IdleTimeoutReader
+// for a tested implementation) and that pattern can be promoted here when a
+// second consumer needs it.

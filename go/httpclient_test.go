@@ -18,39 +18,29 @@ func TestHTTPClientIsBounded(t *testing.T) {
 	}
 }
 
-// A stream client intentionally has no TOTAL timeout, but must still bound the
-// phases before the stream starts. Asserting Transport != nil proved nothing —
-// this drives a real silent peer through the actual stream client, where the
-// header budget is the ONLY thing that can end the call.
-func TestStreamClientBoundsPreStreamPhases(t *testing.T) {
-	c := StreamHTTPClientWithHeaderBudget(1 * time.Second)
-	if c.Timeout != 0 {
-		t.Fatalf("StreamHTTPClient must not set a total timeout (it would cut the stream)")
+// A non-positive budget must fail loudly rather than silently disabling bounds.
+func TestNonPositiveBudgetIsRejected(t *testing.T) {
+	for _, d := range []time.Duration{0, -time.Second} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Fatalf("HTTPClientWithTimeout(%v) did not reject a non-positive budget", d)
+				}
+			}()
+			_ = HTTPClientWithTimeout(d)
+		}()
 	}
+}
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+// Internal RPC must not follow redirects: 301/302/303 rewrite POST to GET, so a
+// state-changing call could return a 200 that never executed.
+func TestRedirectsAreNotFollowed(t *testing.T) {
+	c := HTTPClient()
+	if c.CheckRedirect == nil {
+		t.Fatal("client follows redirects by default — a POST can be rewritten to GET")
 	}
-	defer func() { _ = ln.Close() }()
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			_ = conn // accept and hold: never answer, never close
-		}
-	}()
-
-	start := time.Now()
-	resp, err := c.Get("http://" + ln.Addr().String() + "/silent")
-	if err == nil {
-		_ = resp.Body.Close()
-		t.Fatal("a stream client must still fail against a peer that never sends headers")
-	}
-	if elapsed := time.Since(start); elapsed > 15*time.Second {
-		t.Fatalf("took %v — the header budget did not fire", elapsed)
+	if err := c.CheckRedirect(nil, nil); err != http.ErrUseLastResponse {
+		t.Fatalf("CheckRedirect = %v, want ErrUseLastResponse", err)
 	}
 }
 
@@ -62,8 +52,8 @@ func TestHeaderBudgetTracksTotalTimeout(t *testing.T) {
 	if c.Timeout != long {
 		t.Fatalf("total timeout = %v, want %v", c.Timeout, long)
 	}
-	if long <= DefaultStreamHeaderBudget {
-		t.Fatalf("test not meaningful: %v <= %v", long, DefaultStreamHeaderBudget)
+	if long <= DefaultTimeout {
+		t.Fatalf("test not meaningful: %v <= %v", long, DefaultTimeout)
 	}
 }
 
