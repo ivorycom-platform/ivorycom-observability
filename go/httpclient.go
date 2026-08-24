@@ -29,7 +29,13 @@ const DefaultTimeout = 10 * time.Second
 // silently caps every client built on it: a hard-coded 30s header limit would
 // mean HTTPClientWithTimeout(120s) could never actually reach 120s against an
 // upstream that thinks for 45s before emitting headers.
-func TransportWithHeaderBudget(headerBudget time.Duration) http.RoundTripper {
+//
+// Unexported on purpose. While a raw transport was exported, a caller could pair
+// it with &http.Client{Transport: obs.Transport()} — no total timeout — and get
+// an unbounded client from sanctioned infrastructure. Removing StreamHTTPClient
+// while leaving its building blocks exported would only have moved the hazard.
+func transportWithHeaderBudget(headerBudget time.Duration) http.RoundTripper {
+	requirePositive("transport header budget", headerBudget)
 	return otelhttp.NewTransport(&http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -46,11 +52,6 @@ func TransportWithHeaderBudget(headerBudget time.Duration) http.RoundTripper {
 	})
 }
 
-// Transport returns the traced transport at the default header budget.
-func Transport() http.RoundTripper {
-	return TransportWithHeaderBudget(DefaultTimeout)
-}
-
 // HTTPClient returns a bounded *http.Client whose transport injects W3C trace
 // context into outbound requests, so gateway -> service -> service calls join
 // one trace. Use this for unary (non-streaming) calls.
@@ -65,7 +66,7 @@ func HTTPClientWithTimeout(timeout time.Duration) *http.Client {
 	requirePositive("HTTPClientWithTimeout", timeout)
 	return &http.Client{
 		Timeout:       timeout,
-		Transport:     TransportWithHeaderBudget(timeout),
+		Transport:     transportWithHeaderBudget(timeout),
 		CheckRedirect: noRedirects,
 	}
 }
